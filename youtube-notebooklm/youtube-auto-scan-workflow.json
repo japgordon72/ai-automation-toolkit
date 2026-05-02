@@ -1,0 +1,144 @@
+{
+  "name": "YouTube Auto-Scan (Weekly)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1" }]
+        }
+      },
+      "id": "auto-0001",
+      "name": "Every Monday 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [180, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── UPDATE THESE THREE VALUES ──────────────────────────────────\nconst sheetId            = 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE';\nconst channelWebhookUrl  = 'PASTE_YOUR_N8N_CHANNEL_WEBHOOK_URL_HERE';\nconst apiKey             = 'PASTE_YOUR_YOUTUBE_DATA_API_KEY_HERE';\n// ─────────────────────────────────────────────────────────────────\n\nif (sheetId === 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE') {\n  throw new Error('Auto-scan is not configured yet. Open the \"Configuration\" node and fill in your sheetId, channelWebhookUrl, and apiKey.');\n}\n\nreturn [{ json: { sheetId, channelWebhookUrl, apiKey } }];"
+      },
+      "id": "auto-0002",
+      "name": "Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 320]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "={{ $json.sheetId }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Channels", "mode": "name" },
+        "filtersUI": {},
+        "options": {}
+      },
+      "id": "auto-0003",
+      "name": "Read Channel List",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [580, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter to active channels only, build payload for each\nconst config = $('Configuration').first().json;\nconst rows = $input.all();\n\nconst activeChannels = rows.filter(row => {\n  const active = String(row.json['Active'] || '').toUpperCase();\n  return active === 'TRUE' || active === 'YES' || active === '1';\n});\n\nif (activeChannels.length === 0) {\n  throw new Error('No active channels found in the Channels sheet. Set column C to TRUE for at least one row.');\n}\n\nreturn activeChannels.map(row => ({\n  json: {\n    channelUrl: row.json['Channel URL'],\n    keywords: (row.json['Keywords'] || '').split(',').map(k => k.trim()).filter(Boolean),\n    apiKey: config.apiKey,\n    sheetId: config.sheetId,\n    channelWebhookUrl: config.channelWebhookUrl\n  }\n}));"
+      },
+      "id": "auto-0004",
+      "name": "Filter Active Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 320]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "auto-0005",
+      "name": "One Channel at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [980, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.channelWebhookUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channelUrl: $json.channelUrl, keywords: $json.keywords, apiKey: $json.apiKey, sheetId: $json.sheetId }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "auto-0006",
+      "name": "Trigger Channel Scan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1180, 320]
+    },
+    {
+      "parameters": {
+        "sendTo": "japgordon@gmail.com",
+        "subject": "YouTube Auto-Scan Complete",
+        "emailType": "text",
+        "message": "=Weekly auto-scan finished successfully.\n\nAll active channels in your Channels sheet have been processed. Any new matching videos have been saved to Google Drive.\n\nCheck your AI-Transcripts folder and the Processed sheet for the latest entries.\n\nRun time: {{ new Date().toLocaleString() }}",
+        "options": {}
+      },
+      "id": "auto-0007",
+      "name": "Email: Scan Complete",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1380, 320]
+    },
+    {
+      "parameters": {},
+      "id": "auto-0008",
+      "name": "On Any Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [180, 540]
+    },
+    {
+      "parameters": {
+        "sendTo": "japgordon@gmail.com",
+        "subject": "YouTube Auto-Scan FAILED",
+        "emailType": "text",
+        "message": "=Auto-scan encountered an error and stopped.\n\nError: {{ $json.execution.error.message }}\nNode: {{ $json.execution.lastNodeExecuted }}\nTime: {{ new Date().toLocaleString() }}\n\nFix the issue in n8n and re-run manually, or check your channel URLs and API key.",
+        "options": {}
+      },
+      "id": "auto-0009",
+      "name": "Email: Failure Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [380, 540]
+    }
+  ],
+  "connections": {
+    "Every Monday 9am": {
+      "main": [[{ "node": "Configuration", "type": "main", "index": 0 }]]
+    },
+    "Configuration": {
+      "main": [[{ "node": "Read Channel List", "type": "main", "index": 0 }]]
+    },
+    "Read Channel List": {
+      "main": [[{ "node": "Filter Active Channels", "type": "main", "index": 0 }]]
+    },
+    "Filter Active Channels": {
+      "main": [[{ "node": "One Channel at a Time", "type": "main", "index": 0 }]]
+    },
+    "One Channel at a Time": {
+      "main": [
+        [{ "node": "Trigger Channel Scan", "type": "main", "index": 0 }],
+        [{ "node": "Email: Scan Complete", "type": "main", "index": 0 }]
+      ]
+    },
+    "On Any Error": {
+      "main": [[{ "node": "Email: Failure Alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "versionId": "1",
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": []
+}

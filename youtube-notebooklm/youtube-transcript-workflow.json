@@ -1,0 +1,146 @@
+{
+  "name": "YouTube Transcript to Google Drive",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube-transcript",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract video ID from any YouTube URL format\nconst body = $input.first().json.body || $input.first().json;\nconst url = body.url;\n\nif (!url) throw new Error('No URL provided. Send a POST body like: {\"url\": \"https://youtube.com/watch?v=...\"}');\n\nlet videoId = '';\n\nif (url.includes('v=')) {\n  videoId = url.split('v=')[1].split('&')[0];\n} else if (url.includes('youtu.be/')) {\n  videoId = url.split('youtu.be/')[1].split('?')[0];\n} else if (url.includes('youtube.com/shorts/')) {\n  videoId = url.split('shorts/')[1].split('?')[0];\n} else if (url.includes('youtube.com/embed/')) {\n  videoId = url.split('embed/')[1].split('?')[0];\n}\n\nif (!videoId) throw new Error('Could not extract video ID from: ' + url);\n\nreturn [{ json: { videoId, originalUrl: url } }];"
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Extract Video ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.youtube.com/oembed?url=https://www.youtube.com/watch%3Fv%3D{{ $json.videoId }}&format=json",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Get Video Title",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.youtube.com/api/timedtext?lang=en&v={{ $('Extract Video ID').item.json.videoId }}&fmt=json3",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Fetch Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge title + transcript data\nconst titleData = $('Get Video Title').item.json;\nconst transcriptData = $('Fetch Transcript').item.json;\nconst videoId = $('Extract Video ID').item.json.videoId;\n\nconst title = titleData.title || ('Video_' + videoId);\n\n// Parse YouTube's json3 caption format\nconst events = transcriptData.events || [];\n\nif (events.length === 0) {\n  throw new Error('No transcript found for this video. It may not have captions enabled.');\n}\n\n// Combine all caption segments into clean text\nconst lines = [];\nfor (const event of events) {\n  if (!event.segs) continue;\n  const text = event.segs.map(s => s.utf8 || '').join('').trim();\n  if (text && text !== '\\n') {\n    lines.push(text.replace(/\\n/g, ' '));\n  }\n}\n\n// Group into paragraphs (every ~8 lines)\nconst paragraphs = [];\nfor (let i = 0; i < lines.length; i += 8) {\n  paragraphs.push(lines.slice(i, i + 8).join(' '));\n}\n\nconst cleanTranscript = `Title: ${title}\\nVideo ID: ${videoId}\\nSource: https://www.youtube.com/watch?v=${videoId}\\n\\n---\\n\\n${paragraphs.join('\\n\\n')}`;\n\n// Sanitize title for use as filename\nconst safeTitle = title.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\\s+/g, '_').substring(0, 80);\nconst fileName = safeTitle + '.txt';\n\nreturn [{ json: { cleanTranscript, fileName, title, videoId } }];"
+      },
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Clean Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "AI-Transcripts"
+        },
+        "binaryData": false,
+        "fileContent": "={{ $json.cleanTranscript }}",
+        "options": {
+          "mimeType": "text/plain"
+        }
+      },
+      "id": "a1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Save to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Transcript saved: ' + $('Clean Transcript').item.json.fileName, fileName: $('Clean Transcript').item.json.fileName, title: $('Clean Transcript').item.json.title }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Extract Video ID", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Video ID": {
+      "main": [
+        [
+          { "node": "Get Video Title", "type": "main", "index": 0 },
+          { "node": "Fetch Transcript", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Video Title": {
+      "main": [
+        [{ "node": "Clean Transcript", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Transcript": {
+      "main": [
+        [{ "node": "Clean Transcript", "type": "main", "index": 0 }]
+      ]
+    },
+    "Clean Transcript": {
+      "main": [
+        [{ "node": "Save to Google Drive", "type": "main", "index": 0 }]
+      ]
+    },
+    "Save to Google Drive": {
+      "main": [
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

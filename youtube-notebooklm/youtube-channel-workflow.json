@@ -1,0 +1,171 @@
+{
+  "name": "YouTube Channel to Google Drive (v2 — Filtered + Dedup + Sheets)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube-channel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ch2-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [180, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst channelUrl = (body.channelUrl || body.url || '').trim();\nconst rawKeywords = body.keywords || [];\nconst apiKey = (body.apiKey || '').trim();\nconst sheetId = (body.sheetId || '').trim();\n\nif (!channelUrl) throw new Error('channelUrl is required');\nif (!apiKey) throw new Error('apiKey (YouTube Data API key) is required');\nif (!rawKeywords.length) throw new Error('keywords array must have at least one entry');\n\nconst keywords = rawKeywords.map(k => k.toLowerCase().trim()).filter(Boolean);\n\n// Playlist detection — extract playlistId directly if present\nlet isPlaylist = false;\nlet playlistId = '';\nif (channelUrl.includes('list=')) {\n  isPlaylist = true;\n  playlistId = channelUrl.split('list=')[1].split('&')[0];\n}\n\n// Channel handle / ID extraction\nlet handle = '';\nlet channelId = '';\nif (!isPlaylist) {\n  if (channelUrl.includes('/@')) {\n    handle = channelUrl.split('/@')[1].split('/')[0].split('?')[0];\n  } else if (channelUrl.includes('/channel/')) {\n    channelId = channelUrl.split('/channel/')[1].split('/')[0].split('?')[0];\n  } else if (channelUrl.includes('/c/')) {\n    handle = channelUrl.split('/c/')[1].split('/')[0].split('?')[0];\n  } else if (channelUrl.includes('/user/')) {\n    handle = channelUrl.split('/user/')[1].split('/')[0].split('?')[0];\n  } else {\n    handle = channelUrl.replace(/https?:\\/\\/(www\\.)?youtube\\.com\\//, '').replace('@', '').trim();\n  }\n}\n\n// Load processed IDs from workflow static data (persists between runs)\nconst staticData = $getWorkflowStaticData('global');\nconst processedIds = staticData.processedIds || [];\n\n// Store sheetId for later use in index-building nodes\nif (sheetId) staticData.currentSheetId = sheetId;\n\nreturn [{ json: { handle, channelId, keywords, apiKey, sheetId, isPlaylist, playlistId, processedIds } }];"
+      },
+      "id": "ch2-0002",
+      "name": "Parse Channel Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { handle, channelId, keywords, apiKey, sheetId, isPlaylist, playlistId, processedIds } = $input.first().json;\n\nlet uploadsPlaylistId;\nlet channelTitle;\n\nif (isPlaylist) {\n  // Direct playlist URL — get its title, use playlistId directly\n  const params = new URLSearchParams({ part: 'snippet', id: playlistId, key: apiKey });\n  const res = await $helpers.httpRequest({\n    method: 'GET',\n    url: `https://www.googleapis.com/youtube/v3/playlists?${params}`\n  });\n  channelTitle = res.items?.[0]?.snippet?.title || `Playlist ${playlistId}`;\n  uploadsPlaylistId = playlistId;\n} else {\n  // Channel URL — look up the uploads playlist ID first\n  const channelField = channelId ? { id: channelId } : { forHandle: handle };\n  const params = new URLSearchParams({ part: 'contentDetails,snippet', ...channelField, key: apiKey });\n  const channelRes = await $helpers.httpRequest({\n    method: 'GET',\n    url: `https://www.googleapis.com/youtube/v3/channels?${params}`\n  });\n  if (!channelRes.items?.length) throw new Error(`Channel not found: \"${handle || channelId}\". Check the URL format.`);\n  channelTitle = channelRes.items[0].snippet?.title || handle;\n  uploadsPlaylistId = channelRes.items[0].contentDetails.relatedPlaylists.uploads;\n}\n\n// Paginate through ALL videos (up to 1000)\nlet allVideos = [];\nlet pageToken = '';\nlet pageCount = 0;\nconst MAX_PAGES = 20;\n\ndo {\n  const params = new URLSearchParams({\n    part: 'snippet',\n    playlistId: uploadsPlaylistId,\n    maxResults: '50',\n    key: apiKey\n  });\n  if (pageToken) params.set('pageToken', pageToken);\n  const res = await $helpers.httpRequest({\n    method: 'GET',\n    url: `https://www.googleapis.com/youtube/v3/playlistItems?${params}`\n  });\n  allVideos = allVideos.concat(res.items || []);\n  pageToken = res.nextPageToken || '';\n  pageCount++;\n} while (pageToken && pageCount < MAX_PAGES);\n\nreturn [{ json: { allVideos, keywords, apiKey, sheetId, channelTitle, totalVideos: allVideos.length, processedIds } }];"
+      },
+      "id": "ch2-0003",
+      "name": "Fetch All Channel Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { allVideos, keywords, apiKey, sheetId, channelTitle, totalVideos, processedIds } = $input.first().json;\nconst processedSet = new Set(processedIds);\n\n// Step 1: keyword match on title + description\nconst keywordMatched = allVideos.filter(item => {\n  const title = (item.snippet?.title || '').toLowerCase();\n  const desc = (item.snippet?.description || '').toLowerCase();\n  return keywords.some(kw => (title + ' ' + desc).includes(kw));\n});\n\n// Step 2: remove already-processed videos\nconst newVideos = keywordMatched.filter(item =>\n  !processedSet.has(item.snippet?.resourceId?.videoId)\n);\n\nconst alreadySavedCount = keywordMatched.length - newVideos.length;\n\nif (newVideos.length === 0) {\n  if (keywordMatched.length > 0) {\n    throw new Error(`All ${keywordMatched.length} matching videos are already saved — nothing new to process.`);\n  }\n  throw new Error(`No videos matched keywords [${keywords.join(', ')}] out of ${totalVideos} total on \"${channelTitle}\". Try broader keywords.`);\n}\n\nreturn newVideos.map(item => ({\n  json: {\n    videoId: item.snippet.resourceId.videoId,\n    title: item.snippet.title,\n    publishedAt: item.snippet.publishedAt,\n    apiKey,\n    sheetId,\n    channelTitle,\n    matchedCount: keywordMatched.length,\n    newCount: newVideos.length,\n    alreadySavedCount,\n    totalVideos\n  }\n}));"
+      },
+      "id": "ch2-0004",
+      "name": "Filter Keywords + Dedup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, channel: $input.first().json.channelTitle, totalScanned: $input.first().json.totalVideos, keywordMatched: $input.first().json.matchedCount, alreadySaved: $input.first().json.alreadySavedCount, newToProcess: $input.first().json.newCount, message: 'Processing ' + $input.first().json.newCount + ' new videos in background. Transcripts will appear in Google Drive shortly.' }) }}",
+        "options": {}
+      },
+      "id": "ch2-0005",
+      "name": "Respond (Immediate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs once for ALL matched videos, fetches each transcript with a preview summary\nconst allItems = $input.all();\nconst results = [];\n\nfor (const item of allItems) {\n  const { videoId, title, channelTitle, publishedAt, sheetId } = item.json;\n\n  await new Promise(resolve => setTimeout(resolve, 600));\n\n  let transcriptText = '';\n  let preview = '';\n  let skipped = false;\n\n  try {\n    const res = await $helpers.httpRequest({\n      method: 'GET',\n      url: `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&fmt=json3`\n    });\n\n    const events = (res.events || []);\n\n    if (events.length === 0) {\n      skipped = true;\n      transcriptText = 'No English transcript available for this video.';\n      preview = 'No transcript available.';\n    } else {\n      const lines = [];\n      for (const event of events) {\n        if (!event.segs) continue;\n        const text = event.segs.map(s => s.utf8 || '').join('').trim().replace(/\\n/g, ' ');\n        if (text) lines.push(text);\n      }\n\n      const paragraphs = [];\n      for (let i = 0; i < lines.length; i += 8) {\n        paragraphs.push(lines.slice(i, i + 8).join(' '));\n      }\n\n      // Free summary: first 2-3 sentences of the transcript\n      const firstPara = paragraphs[0] || '';\n      const sentences = firstPara.match(/[^.!?]+[.!?]+/g) || [];\n      preview = sentences.slice(0, 3).join(' ').trim() || firstPara.substring(0, 250);\n\n      transcriptText = paragraphs.join('\\n\\n');\n    }\n  } catch (err) {\n    skipped = true;\n    transcriptText = `Error fetching transcript: ${err.message}`;\n    preview = 'Transcript fetch failed.';\n  }\n\n  const publishDate = (publishedAt || '').substring(0, 10) || 'unknown';\n  const safeTitle = title.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\\s+/g, '_').substring(0, 60);\n  const fileName = `${safeTitle}_${videoId}.txt`;\n\n  const fileContent = [\n    `Title: ${title}`,\n    `Channel: ${channelTitle}`,\n    `Published: ${publishedAt || 'unknown'}`,\n    `Video: https://www.youtube.com/watch?v=${videoId}`,\n    '',\n    `Preview: ${preview}`,\n    '',\n    '---',\n    '',\n    transcriptText\n  ].join('\\n');\n\n  results.push({\n    json: { fileName, fileContent, title, videoId, channelTitle, publishedAt, preview, sheetId, skipped }\n  });\n}\n\nreturn results;",
+        "runOnceForAllItems": true
+      },
+      "id": "ch2-0006",
+      "name": "Fetch + Clean All Transcripts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 440]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "ch2-0007",
+      "name": "Split Into Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1180, 440]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ $json.fileName }}",
+        "driveId": { "__rl": true, "mode": "list", "value": "My Drive" },
+        "folderId": { "__rl": true, "mode": "list", "value": "AI-Transcripts" },
+        "binaryData": false,
+        "fileContent": "={{ $json.fileContent }}",
+        "options": { "mimeType": "text/plain" }
+      },
+      "id": "ch2-0008",
+      "name": "Save to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1380, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "={{ $json.sheetId }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Processed", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Video ID": "={{ $json.videoId }}",
+            "Title": "={{ $json.title }}",
+            "Channel": "={{ $json.channelTitle }}",
+            "Date Processed": "={{ new Date().toISOString().split('T')[0] }}",
+            "Preview": "={{ ($json.preview || '').substring(0, 300) }}",
+            "File Name": "={{ $json.fileName }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "ch2-0009",
+      "name": "Log to Processed Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1580, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mark this video as processed in persistent static data so future scans skip it\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.processedIds) staticData.processedIds = [];\nconst videoId = $json.videoId;\nif (videoId && !staticData.processedIds.includes(videoId)) {\n  staticData.processedIds.push(videoId);\n}\nreturn [$input.item];"
+      },
+      "id": "ch2-0010",
+      "name": "Update Static Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Parse Channel Input", "type": "main", "index": 0 }]]
+    },
+    "Parse Channel Input": {
+      "main": [[{ "node": "Fetch All Channel Videos", "type": "main", "index": 0 }]]
+    },
+    "Fetch All Channel Videos": {
+      "main": [[{ "node": "Filter Keywords + Dedup", "type": "main", "index": 0 }]]
+    },
+    "Filter Keywords + Dedup": {
+      "main": [[
+        { "node": "Respond (Immediate)", "type": "main", "index": 0 },
+        { "node": "Fetch + Clean All Transcripts", "type": "main", "index": 0 }
+      ]]
+    },
+    "Fetch + Clean All Transcripts": {
+      "main": [[{ "node": "Split Into Files", "type": "main", "index": 0 }]]
+    },
+    "Split Into Files": {
+      "main": [
+        [{ "node": "Save to Google Drive", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Save to Google Drive": {
+      "main": [[{ "node": "Log to Processed Sheet", "type": "main", "index": 0 }]]
+    },
+    "Log to Processed Sheet": {
+      "main": [[{ "node": "Update Static Data", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "2",
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": []
+}

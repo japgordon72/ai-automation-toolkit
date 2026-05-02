@@ -1,0 +1,49 @@
+{
+  "last_updated": "2026-05-02T14:36:59.388583",
+  "ideas": [
+    {
+      "id": 1,
+      "topic": "Signal Dashboard - AI/Automation Signal Aggregator",
+      "description": "Built a real-time signal fetcher that aggregates AI/automation trends from 4 free APIs (HN, ArXiv, GitHub, Reddit), scores by relevance + early adopter momentum, with animated interactive dashboard. 50+ signals per run, zero paid APIs.",
+      "session_date": "2026-05-02",
+      "session_file": "2026-05-02-continued.md",
+      "suggested_post_date": "2026-05-05",
+      "target_audience": "Builders, content creators, trend followers",
+      "key_points": [
+        "50+ signals per run",
+        "4 free APIs",
+        "Relevance + momentum scoring",
+        "Interactive dashboard"
+      ],
+      "hashtags": [
+        "#BuildInPublic",
+        "#AI",
+        "#Automation",
+        "#Trends",
+        "#NoCode"
+      ]
+    },
+    {
+      "id": 3,
+      "topic": "Modern Dashboard Design with Glassmorphism & Animations",
+      "description": "Upgraded dashboard with professional glassmorphism design, animated progress bars, gradient backgrounds, smooth fade-in transitions, and modern UI polish. Went from functional to Instagram-worthy.",
+      "session_date": "2026-05-02",
+      "session_file": "2026-05-02-continued.md",
+      "suggested_post_date": "2026-05-07",
+      "target_audience": "Designers, UX enthusiasts, frontend builders",
+      "key_points": [
+        "Glassmorphism cards",
+        "Animated progress bars",
+        "Gradient UI",
+        "Modern Polish"
+      ],
+      "hashtags": [
+        "#Design",
+        "#UX",
+        "#Frontend",
+        "#WebDevelopment",
+        "#CSS"
+      ]
+    }
+  ]
+}

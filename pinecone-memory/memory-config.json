@@ -1,0 +1,6 @@
+{
+  "personal_index": "personal-memory",
+  "embedding_model": "llama-text-embed-v2",
+  "dimension": 1024,
+  "knowledge_indexes": []
+}

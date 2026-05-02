@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Transcript Fetcher</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f; color: #e0e0e0;
+      min-height: 100vh; display: flex;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .card {
+      background: #1a1a1a; border: 1px solid #2e2e2e;
+      border-radius: 16px; padding: 40px;
+      width: 100%; max-width: 600px;
+    }
+    h1 { font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .subtitle { font-size: 14px; color: #666; margin-bottom: 28px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 28px; background: #111; border-radius: 10px; padding: 4px; }
+    .tab {
+      flex: 1; padding: 10px; border: none; border-radius: 8px;
+      background: transparent; color: #666; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .tab.active { background: #2a2a2a; color: #fff; }
+    .tab:hover:not(.active) { color: #aaa; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    label { display: block; font-size: 13px; font-weight: 500; color: #aaa; margin-bottom: 6px; }
+    input[type="url"], input[type="text"], input[type="password"], textarea {
+      width: 100%; padding: 12px 16px;
+      background: #111; border: 1px solid #333; border-radius: 10px;
+      color: #fff; font-size: 14px; outline: none;
+      transition: border-color 0.2s; margin-bottom: 14px; font-family: inherit;
+    }
+    input:focus, textarea:focus { border-color: #ff4444; }
+    input::placeholder, textarea::placeholder { color: #555; }
+    textarea { resize: vertical; min-height: 72px; }
+
+    .row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .row input { flex: 1; margin-bottom: 0; }
+    .row button { width: auto; padding: 12px 16px; font-size: 13px; flex-shrink: 0; }
+
+    button {
+      width: 100%; padding: 14px; background: #ff4444; border: none;
+      border-radius: 10px; color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, opacity 0.2s; margin-top: 4px;
+    }
+    button:hover { background: #e03333; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .tip { font-size: 12px; color: #555; margin-top: -10px; margin-bottom: 14px; line-height: 1.5; }
+
+    .status {
+      margin-top: 18px; padding: 14px 16px;
+      border-radius: 10px; font-size: 14px; display: none; line-height: 1.6;
+    }
+    .status.success { display: block; background: #0d2e1a; border: 1px solid #1a5c36; color: #4ade80; }
+    .status.error   { display: block; background: #2e0d0d; border: 1px solid #5c1a1a; color: #f87171; }
+    .status.loading { display: block; background: #1a1a2e; border: 1px solid #2e2e5c; color: #818cf8; }
+
+    .stat-row { display: flex; gap: 10px; margin-top: 14px; }
+    .stat {
+      flex: 1; text-align: center; padding: 10px;
+      background: #111; border: 1px solid #2a2a2a; border-radius: 8px;
+    }
+    .stat-num { font-size: 22px; font-weight: 700; color: #fff; }
+    .stat-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+    .stat-row.hidden { display: none; }
+
+    .history { margin-top: 24px; }
+    .history h2 { font-size: 12px; font-weight: 500; color: #444; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .history-item { font-size: 13px; color: #4ade80; padding: 5px 0; border-bottom: 1px solid #1e1e1e; }
+    .history-item:last-child { border-bottom: none; }
+
+    hr { border: none; border-top: 1px solid #222; margin: 20px 0; }
+
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+    .badge-blue { background: #1a2e4a; color: #60a5fa; }
+    .badge-green { background: #0d2e1a; color: #4ade80; }
+
+    .warn { font-size: 12px; color: #f59e0b; background: #1c1500; border: 1px solid #3d2f00; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>YouTube Transcript Fetcher</h1>
+  <p class="subtitle">Save YouTube transcripts to Google Drive → query in NotebookLM</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('single')">Single Video</button>
+    <button class="tab" onclick="switchTab('channel')">Channel / Playlist <span class="badge badge-blue">Filtered</span></button>
+    <button class="tab" onclick="switchTab('settings')">Settings</button>
+  </div>
+
+  <!-- SINGLE VIDEO -->
+  <div id="panel-single" class="panel active">
+    <label>YouTube Video URL</label>
+    <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+    <button id="singleBtn" onclick="fetchSingle()">Fetch & Save Transcript</button>
+    <div id="singleStatus" class="status"></div>
+    <div class="history" id="singleHistory" style="display:none">
+      <h2>Saved this session</h2>
+      <div id="singleHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- CHANNEL / PLAYLIST -->
+  <div id="panel-channel" class="panel">
+    <div id="channelSheetWarn" class="warn" style="display:none">
+      Google Sheet ID not set — dedup and logging are disabled. Go to Settings to add it.
+    </div>
+
+    <label>YouTube Channel or Playlist URL</label>
+    <input type="url" id="channelUrl"
+      placeholder="https://www.youtube.com/@NickSaraev  or  https://youtube.com/playlist?list=PL..." />
+    <p class="tip" style="margin-top:-10px; margin-bottom:14px">Accepts channel handles, /c/, /channel/, and playlist URLs</p>
+
+    <label>Keywords <span style="color:#555; font-weight:400">(comma-separated — videos matching ANY keyword are kept)</span></label>
+    <textarea id="keywords" placeholder="n8n, automation, agency, client, workflow, AI tools"></textarea>
+    <p class="tip">Tip: use short, broad words. More keywords = more videos. You can always re-run with different keywords.</p>
+
+    <button id="channelBtn" onclick="fetchChannel()">Scan & Save Matching Transcripts</button>
+
+    <div id="channelStatus" class="status"></div>
+
+    <div id="channelStats" class="stat-row hidden">
+      <div class="stat"><div class="stat-num" id="statScanned">—</div><div class="stat-label">Scanned</div></div>
+      <div class="stat"><div class="stat-num" id="statMatched">—</div><div class="stat-label">Matched</div></div>
+      <div class="stat"><div class="stat-num" id="statSaved">—</div><div class="stat-label">Already saved</div></div>
+      <div class="stat"><div class="stat-num" id="statNew">—</div><div class="stat-label">New</div></div>
+    </div>
+
+    <div class="history" id="channelHistory" style="display:none">
+      <h2>Scans this session</h2>
+      <div id="channelHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="panel-settings" class="panel">
+    <label>n8n Webhook — Single Video</label>
+    <div class="row">
+      <input type="url" id="singleWebhook" placeholder="https://your-n8n.app.n8n.cloud/webhook/youtube-transcript" />
+      <button onclick="saveSetting('singleWebhook')">Save</button>
+    </div>
+
+    <label>n8n Webhook — Channel / Playlist Scan</label>
+    <div class="row">
+      <input type="url" id="channelWebhook" placeholder="https://your-n8n.app.n8n.cloud/webhook/youtube-channel" />
+      <button onclick="saveSetting('channelWebhook')">Save</button>
+    </div>
+
+    <hr>
+
+    <label>YouTube Data API Key <span class="badge badge-blue">for channel scanning</span></label>
+    <div class="row">
+      <input type="password" id="ytApiKey" placeholder="AIzaSy..." />
+      <button onclick="saveSetting('ytApiKey')">Save</button>
+    </div>
+    <p class="tip">Get a free key: Google Cloud Console → YouTube Data API v3 → Credentials → API Key</p>
+
+    <label>Google Sheet ID <span class="badge badge-green">enables dedup + logging</span></label>
+    <div class="row">
+      <input type="text" id="sheetId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" />
+      <button onclick="saveSetting('sheetId')">Save</button>
+    </div>
+    <p class="tip">Copy from your Google Sheet URL: docs.google.com/spreadsheets/d/<strong>[THIS PART]</strong>/edit</p>
+
+    <div id="settingsStatus" class="status"></div>
+  </div>
+</div>
+
+<script>
+  const KEYS = {
+    singleWebhook: 'n8n_single_webhook',
+    channelWebhook: 'n8n_channel_webhook',
+    ytApiKey: 'yt_api_key',
+    sheetId: 'google_sheet_id'
+  };
+
+  window.onload = function () {
+    document.getElementById('singleWebhook').value  = ls('singleWebhook')  || '';
+    document.getElementById('channelWebhook').value = ls('channelWebhook') || '';
+    document.getElementById('ytApiKey').value       = ls('ytApiKey')       || '';
+    document.getElementById('sheetId').value        = ls('sheetId')        || '';
+    updateChannelWarning();
+  };
+
+  function ls(key, val) {
+    if (val !== undefined) { localStorage.setItem(KEYS[key], val); return; }
+    return localStorage.getItem(KEYS[key]) || '';
+  }
+
+  function switchTab(name) {
+    const names = ['single', 'channel', 'settings'];
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    if (name === 'channel') updateChannelWarning();
+  }
+
+  function updateChannelWarning() {
+    document.getElementById('channelSheetWarn').style.display = ls('sheetId') ? 'none' : 'block';
+  }
+
+  function saveSetting(key) {
+    const val = document.getElementById(key).value.trim();
+    if (!val) return;
+    ls(key, val);
+    showStatus('settingsStatus', 'Saved!', 'success');
+    if (key === 'sheetId') updateChannelWarning();
+  }
+
+  // ── Single Video ──────────────────────────────────────────────────────────
+  async function fetchSingle() {
+    const webhookUrl = ls('singleWebhook');
+    const videoUrl   = document.getElementById('videoUrl').value.trim();
+
+    if (!webhookUrl) { showStatus('singleStatus', 'Set your single-video webhook URL in Settings first.', 'error'); return; }
+    if (!videoUrl)   { showStatus('singleStatus', 'Please enter a YouTube video URL.', 'error'); return; }
+    if (!videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be')) {
+      showStatus('singleStatus', "That doesn't look like a YouTube URL.", 'error'); return;
+    }
+
+    const btn = document.getElementById('singleBtn');
+    btn.disabled = true;
+    showStatus('singleStatus', 'Fetching transcript… usually 5–10 seconds.', 'loading');
+
+    try {
+      const res  = await post(webhookUrl, { url: videoUrl });
+      if (res.success) {
+        showStatus('singleStatus', 'Saved: ' + res.fileName, 'success');
+        addHistory('singleHistoryList', 'singleHistory', res.title || res.fileName);
+        document.getElementById('videoUrl').value = '';
+      } else {
+        showStatus('singleStatus', 'Error: ' + (res.message || 'Unknown error from n8n'), 'error');
+      }
+    } catch (e) {
+      showStatus('singleStatus', 'Could not reach n8n. Make sure the workflow is Active and the webhook URL is correct.', 'error');
+    } finally { btn.disabled = false; }
+  }
+
+  // ── Channel / Playlist ────────────────────────────────────────────────────
+  async function fetchChannel() {
+    const webhookUrl = ls('channelWebhook');
+    const apiKey     = ls('ytApiKey');
+    const sheetId    = ls('sheetId');
+    const channelUrl = document.getElementById('channelUrl').value.trim();
+    const keywords   = document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean);
+
+    if (!webhookUrl) { showStatus('channelStatus', 'Set your channel webhook URL in Settings first.', 'error'); return; }
+    if (!apiKey)     { showStatus('channelStatus', 'Set your YouTube Data API Key in Settings first.', 'error'); return; }
+    if (!channelUrl) { showStatus('channelStatus', 'Please enter a channel or playlist URL.', 'error'); return; }
+    if (!keywords.length) { showStatus('channelStatus', 'Enter at least one keyword.', 'error'); return; }
+
+    const btn = document.getElementById('channelBtn');
+    btn.disabled = true;
+    document.getElementById('channelStats').classList.add('hidden');
+    showStatus('channelStatus', 'Scanning… fetching full video list (~10 seconds)…', 'loading');
+
+    try {
+      const payload = { channelUrl, keywords, apiKey };
+      if (sheetId) payload.sheetId = sheetId;
+
+      const data = await post(webhookUrl, payload);
+
+      if (data.success) {
+        const isPlaylist = channelUrl.includes('list=');
+        const label = isPlaylist ? 'playlist' : `"${data.channel}"`;
+        showStatus(
+          'channelStatus',
+          `${data.newToProcess} new videos queued for ${label}. Transcripts saving to Google Drive in background.`,
+          'success'
+        );
+
+        // Show stats panel
+        document.getElementById('statScanned').textContent = data.totalScanned ?? '—';
+        document.getElementById('statMatched').textContent = data.keywordMatched ?? '—';
+        document.getElementById('statSaved').textContent   = data.alreadySaved  ?? '—';
+        document.getElementById('statNew').textContent     = data.newToProcess  ?? '—';
+        document.getElementById('channelStats').classList.remove('hidden');
+
+        addHistory('channelHistoryList', 'channelHistory',
+          `${data.channel || 'Playlist'} — ${data.newToProcess} new / ${data.keywordMatched} matched`);
+        document.getElementById('channelUrl').value = '';
+      } else {
+        showStatus('channelStatus', 'Error: ' + (data.message || JSON.stringify(data)), 'error');
+      }
+    } catch (e) {
+      showStatus('channelStatus', 'Could not reach n8n. Make sure the channel workflow is Active.', 'error');
+    } finally { btn.disabled = false; }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  async function post(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  function showStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  function addHistory(listId, sectionId, label) {
+    document.getElementById(sectionId).style.display = 'block';
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.textContent = label;
+    document.getElementById(listId).prepend(item);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.querySelector('.panel.active').id;
+    if (active === 'panel-single')  fetchSingle();
+    if (active === 'panel-channel') fetchChannel();
+  });
+</script>
+</body>
+</html>

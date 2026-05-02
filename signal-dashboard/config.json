@@ -1,0 +1,40 @@
+{
+  "keywords": [
+    "AI",
+    "LLM",
+    "large language model",
+    "automation",
+    "agent",
+    "Claude",
+    "GPT",
+    "open source",
+    "model",
+    "inference",
+    "neural",
+    "deep learning",
+    "machine learning",
+    "transformers",
+    "embedding",
+    "retrieval",
+    "RAG",
+    "fine-tune",
+    "prompt engineering",
+    "multimodal"
+  ],
+  "subreddits": [
+    "MachineLearning",
+    "OpenAI",
+    "artificial",
+    "Automation",
+    "LocalLLaMA"
+  ],
+  "arxiv_categories": [
+    "cs.AI",
+    "cs.LG",
+    "cs.RO"
+  ],
+  "output_dir": "~/.claude/signal_dashboard/output",
+  "signal_retention_days": 3,
+  "top_signals_count": 5,
+  "hours_lookback": 24
+}
