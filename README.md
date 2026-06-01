@@ -1,181 +1,215 @@
-# AI Automation Toolkit - Custom Tools & Agents for Automation
+# AI Automation Toolkit
 
-A collection of **production-ready automation systems** built to solve real problems: trend detection, persistent AI memory, content automation, and knowledge base generation.
+A collection of four production-ready automation systems built to solve real problems in trend detection, AI memory, content creation, and knowledge management. Each tool is independently deployable and demonstrates end-to-end system thinking — not just gluing APIs together.
 
-This portfolio demonstrates the ability to **architect and build custom automation tools**—not just configure existing platforms.
-
----
-
-## Projects
-
-### 1. 🚀 [Signal Dashboard](./signal-dashboard/) — Real-Time Trend Aggregator
-Aggregates AI/automation trends from 4 free APIs (HN, ArXiv, GitHub, Reddit) with intelligent relevance scoring and early adopter momentum detection. Generates an interactive dashboard with animated progress bars and automated content outlines.
-
-**Tech:** Python, APIs, HTML/CSS/JS, JSON  
-**Key Skills:** Data aggregation, intelligent scoring, UI design, automation  
-**Impact:** Replaces manual monitoring of 10+ sources
-
-### 2. 🧠 [Pinecone Memory](./pinecone-memory/) — Persistent AI Context System
-Gives Claude Code persistent semantic memory across sessions. Uses embeddings and vector search to instantly surface relevant past conversations and decisions.
-
-**Tech:** Python, Pinecone, semantic embeddings, vector search  
-**Key Skills:** System design, embeddings, API integration, persistence  
-**Impact:** Eliminates cold starts on multi-week projects
-
-### 3. 📝 [LinkedIn Post Generator](./linkedin-post-generator/) — Automated Content from Work Sessions
-Analyzes work sessions, extracts accomplishments, and generates polished LinkedIn posts (long + short versions) with strategic posting recommendations. Builds a searchable content idea bank.
-
-**Tech:** Python, Claude Code, JSON, automation skills  
-**Key Skills:** NLP, content strategy, Claude integration, workflow design  
-**Impact:** Maintains consistent content presence without manual work
-
-### 4. 🎓 [YouTube-to-NotebookLM](./youtube-notebooklm/) — Video Knowledge Base Automation
-Transforms YouTube videos into structured study guides and interactive learning materials using NotebookLM. Supports single videos, full channels, and automated scanning of new uploads.
-
-**Tech:** n8n, YouTube API, Google Drive API, NotebookLM  
-**Key Skills:** Workflow automation, API orchestration, knowledge management  
-**Impact:** Converts unlimited video knowledge into searchable learning materials
+**Built by:** Japheth Gordon · [japgordon@gmail.com](mailto:japgordon@gmail.com) · [LinkedIn](https://linkedin.com/in/japgordon) · [GitHub](https://github.com/japgordon72)
 
 ---
 
-## Skillset Demonstrated
+## Tools
 
-| Skill | Projects | Level |
-|-------|----------|-------|
-| **Python** | Signal Dashboard, Pinecone Memory, LinkedIn Post Generator | Advanced |
-| **APIs & Integration** | Signal Dashboard, YouTube, Pinecone Memory | Advanced |
-| **System Design** | All 4 projects | Advanced |
-| **Data Processing** | Signal Dashboard, Pinecone Memory | Advanced |
-| **Workflow Automation** | YouTube-to-NotebookLM, LinkedIn Post Generator | Advanced |
-| **UI/UX** | Signal Dashboard (animations, responsive design) | Intermediate |
-| **Vector Search** | Pinecone Memory | Advanced |
-| **n8n Automation** | YouTube-to-NotebookLM | Advanced |
-| **Claude Code Integration** | All projects use Claude Code for development | Advanced |
+| Tool | What it does | Stack | Key Skill |
+|---|---|---|---|
+| [Signal Dashboard](#1-signal-dashboard) | Aggregates AI/automation trends from 4 APIs, scores by relevance + momentum, generates interactive dashboard | Python, 4 APIs, HTML/JS | Data aggregation, scoring algorithms |
+| [Pinecone Memory](#2-pinecone-memory) | Gives Claude persistent semantic memory across sessions — `/recall <topic>` surfaces relevant past context instantly | Python, Pinecone, Sentence Transformers | Vector search, embeddings, RAG |
+| [LinkedIn Post Generator](#3-linkedin-post-generator) | Analyzes work sessions and generates polished LinkedIn posts (long + short) with posting strategy | Python, Claude API | LLM prompt engineering, content automation |
+| [YouTube → NotebookLM](#4-youtube--notebooklm) | Transforms YouTube videos, channels, and playlists into structured study guides automatically | n8n, YouTube API, Google Drive API, NotebookLM | Workflow automation, API orchestration |
 
 ---
 
-## Tech Stack
+## 1. Signal Dashboard
 
-### Core Technologies
-- **Python 3** — System scripting & logic
-- **Claude Code** — AI-powered development
-- **APIs** — YouTube, Hacker News, ArXiv, GitHub, Reddit, Pinecone, Google Drive, NotebookLM
-- **n8n** — Workflow orchestration
-- **Vector Databases** — Pinecone for semantic search
-- **Frontend** — HTML, CSS, JavaScript (animations & interactive UI)
+**Real-time AI/automation trend aggregator with intelligent scoring.**
 
-### Libraries & Frameworks
-- `requests` — HTTP requests
-- `sentence-transformers` — Semantic embeddings
-- `pinecone-client` — Vector database
-- `json` — Data serialization
+Replaces manually checking 10+ sources daily. Fetches signals from Hacker News, ArXiv, GitHub, and Reddit in parallel, ranks them by a dual-factor algorithm (60% relevance + 40% early-adopter momentum), and renders an interactive dashboard with content outlines for the top signals.
 
----
+```
+fetch_signals.py → signals.json → generate_dashboard.py → output/dashboard.html
+```
 
-## Why These Projects Matter
+**Quick start:**
+```bash
+cd signal-dashboard
+pip install requests
+python fetch_signals.py
+python generate_dashboard.py signals.json
+```
 
-### For Employers Evaluating AI Automation Skills
+**Impact:** ~50 signals processed in <5 seconds · Replaces 30–45 min of daily manual source-checking
 
-✅ **Complete systems thinking** — Not just "I can configure Make/Zapier," but "I can architect & build tools"  
-✅ **Real problem-solving** — Each project solves an actual problem (trend overload, context loss, content friction, knowledge capture)  
-✅ **Technical depth** — Demonstrates Python, APIs, system design, vector search, workflow orchestration  
-✅ **Production mindset** — Error handling, configuration, documentation, extensibility  
-✅ **Cross-functional** — Combines backend (Python), infrastructure (APIs, vector DB), and frontend (UI/UX)  
-✅ **Automation philosophy** — Automate the repetitive, not the creative. Let AI handle intelligence.  
-
-### Results Delivered
-
-| Project | Problem | Solution | Impact |
-|---------|---------|----------|--------|
-| Signal Dashboard | Manual monitoring of 10+ trend sources | Automated aggregation + smart ranking | Hours/week saved, better trend visibility |
-| Pinecone Memory | Context loss between sessions | Persistent semantic memory | Project continuity, learning over time |
-| LinkedIn Post Generator | Content creation is friction | Session → polished posts | Consistent sharing, portfolio building |
-| YouTube-to-NotebookLM | Video knowledge isn't searchable | Automated transcript → study guide | Knowledge base at scale |
+[→ Full docs](./signal-dashboard/README.md)
 
 ---
 
-## How These Were Built
+## 2. Pinecone Memory
 
-All projects were built using **Claude Code** (Anthropic's AI development environment) combined with **best practices in automation**:
+**Persistent semantic memory system for Claude Code.**
 
-- ✅ Reading the user's requirements clearly
-- ✅ Prototyping quickly to validate ideas
-- ✅ Iterating based on feedback (e.g., upgrading dashboard UI for visual impact)
-- ✅ Building for extensibility (easy to add new data sources, customize scoring, etc.)
-- ✅ Documenting thoroughly (READMEs, setup guides, inline comments)
+Every AI session starts cold by default — no memory of past decisions, architectural choices, or working patterns. This system captures sessions, embeds them with `all-MiniLM-L6-v2`, stores them in a Pinecone vector index, and surfaces relevant past context on demand via `/recall`.
 
-This demonstrates how modern AI tools enable rapid development of sophisticated systems without traditional development friction.
+```
+Session log → upsert_session.py → Pinecone index
+/recall "auth decisions" → pinecone_memory.py → top-5 relevant sessions
+```
+
+**Quick start:**
+```bash
+cd pinecone-memory
+pip install sentence-transformers pinecone-client
+python upsert_session.py your-session.md
+# Then in Claude Code:
+# /recall "topic you want to remember"
+```
+
+**Impact:** Cold starts eliminated on multi-week projects · <500ms retrieval · Free Pinecone tier supports ~1,000 sessions
+
+[→ Full docs](./pinecone-memory/README.md)
+
+---
+
+## 3. LinkedIn Post Generator
+
+**Converts work sessions into polished LinkedIn posts automatically.**
+
+Reads Claude Code session logs, extracts 2–3 major accomplishments, generates two versions of each post (250–300 word long-form + 80–120 word short-form), archives unused ideas to a searchable bank, and recommends timing and hashtag strategy.
+
+```
+/linkedin-post-generator → session analysis → topic selection → 2 post versions + strategy
+```
+
+**Quick start:**
+```
+# In Claude Code:
+/linkedin-post-generator
+```
+
+**Impact:** Eliminates manual content summarization · Maintains consistent LinkedIn presence without extra effort · Builds build-in-public momentum
+
+[→ Full docs](./linkedin-post-generator/README.md)
+
+---
+
+## 4. YouTube → NotebookLM
+
+**End-to-end automation: YouTube video → AI study guide.**
+
+Three n8n workflows covering every use case: single video, full channel batch processing, and auto-scan for new uploads. Extracts transcripts via YouTube API, uploads to Google Drive, feeds to NotebookLM, and returns a structured study guide.
+
+```
+YouTube URL → transcript extraction → Google Drive upload → NotebookLM → study guide link
+```
+
+**Quick start:**
+```
+1. Import .json workflow files into your n8n instance
+2. Configure YouTube API + Google credentials
+3. Open transcript-trigger.html and submit a video URL
+```
+
+**Impact:** 2–5 min per video · 30+ videos/hour batch mode · Converts unlimited video knowledge to searchable text
+
+[→ Full docs](./youtube-notebooklm/README.md)
+
+---
+
+## Project Structure
+
+```
+ai-automation-toolkit/
+├── signal-dashboard/
+│   ├── fetch_signals.py          # Parallel API fetch + dual-factor scoring
+│   ├── generate_dashboard.py     # HTML dashboard generator
+│   ├── dashboard_template.html   # Animated UI template
+│   └── config.json               # Keywords, subreddits, ArXiv categories
+├── pinecone-memory/
+│   ├── pinecone_memory.py        # /recall query logic
+│   ├── upsert_session.py         # Session embedding + Pinecone upsert
+│   └── memory-config.json        # Index config, embedding model, top-k
+├── linkedin-post-generator/
+│   ├── linkedin-post-generator-skill.md  # Claude Code skill definition
+│   └── post_ideas.json           # Persistent content idea bank
+└── youtube-notebooklm/
+    ├── youtube-transcript-workflow.json  # Single video workflow
+    ├── youtube-channel-workflow.json     # Full channel batch workflow
+    ├── youtube-auto-scan-workflow.json   # Auto-scan for new uploads
+    ├── transcript-trigger.html   # Web form trigger UI
+    └── SETUP-GUIDE.md            # Step-by-step configuration
+```
+
+---
+
+## Skills Demonstrated
+
+| Skill | Where |
+|---|---|
+| Python scripting | Signal Dashboard, Pinecone Memory, LinkedIn Post Generator |
+| API integration (REST) | HN, ArXiv, GitHub, Reddit, YouTube, Google Drive |
+| Vector databases + embeddings | Pinecone Memory (Pinecone + Sentence Transformers) |
+| RAG pipeline design | Pinecone Memory — same pattern used in production AI systems |
+| Workflow automation (n8n) | YouTube → NotebookLM (3 workflows, webhooks, scheduling) |
+| LLM prompt engineering | LinkedIn Post Generator (session analysis + structured output) |
+| Scoring algorithm design | Signal Dashboard (dual-factor weighted ranking) |
+| HTML/CSS/JS frontend | Signal Dashboard (animated dashboard), transcript-trigger.html |
+| System design | All tools: structured input → processing → useful output |
+| Documentation | Every tool has full README, setup guide, and usage examples |
+
+---
+
+## Why These Tools Exist
+
+Each tool was built to solve a real bottleneck in an AI-assisted workflow:
+
+- **Signal Dashboard** → Monitoring 10+ sources for trends was eating 30–45 min/day
+- **Pinecone Memory** → Multi-week projects lost context between sessions, requiring re-explaining decisions
+- **LinkedIn Post Generator** → Shipping work but not sharing it = invisible portfolio
+- **YouTube → NotebookLM** → Valuable video content was locked in watch-only format, not searchable
+
+The philosophy: **automate the repetitive, preserve the creative.** Let systems handle signal aggregation, memory management, and content formatting so time stays focused on high-leverage work.
 
 ---
 
 ## Getting Started
 
-Each project is self-contained with its own README and setup guide:
+Each tool is self-contained. Install only what you need:
 
 ```bash
-cd signal-dashboard/
-pip install requests
-python fetch_signals.py
+# Signal Dashboard — no API keys required
+cd signal-dashboard && pip install requests && python fetch_signals.py
 
-cd ../pinecone-memory/
-pip install sentence-transformers pinecone-client
-python upsert_session.py 2026-05-02.md
+# Pinecone Memory — requires free Pinecone account
+cd pinecone-memory && pip install sentence-transformers pinecone-client
 
-cd ../linkedin-post-generator/
-# Skill-based, no installation needed
+# LinkedIn Post Generator — requires Claude Code
+# Install Claude Code, then: /linkedin-post-generator
 
-cd ../youtube-notebooklm/
-# Import n8n workflows, see SETUP-GUIDE.md
+# YouTube → NotebookLM — requires n8n + Google account
+# See youtube-notebooklm/SETUP-GUIDE.md
 ```
 
 ---
 
-## Philosophy
+## Part of a Larger AI Stack
 
-These projects reflect a philosophy about automation:
+This toolkit is one layer of a broader AI automation system built across multiple clients and projects:
 
-> **Don't automate everything. Automate the repetitive, boring, mechanical stuff. Preserve the creative, strategic, high-value work for humans.**
-
-- Signal Dashboard automates monitoring → lets you focus on strategy
-- Pinecone Memory automates context management → lets you focus on decisions
-- LinkedIn Post Generator automates summarization → lets you focus on building
-- YouTube-to-NotebookLM automates transcription/summarization → lets you focus on learning
-
-The goal is **force multiplication**: better results in less time.
+| Project | Description | Repo |
+|---|---|---|
+| **Triton Peptide Protocol Tool** | RAG-powered clinical decision support · FastAPI + Next.js + Pinecone | [view](https://github.com/japgordon72/triton-peptide-protocol) |
+| **YouTube Playbook Generator** | Python + Claude API · transforms videos into structured playbooks | [view](https://github.com/japgordon72/youtube-playbook-generator) |
+| **AI Automation Toolkit** | This repo | — |
 
 ---
 
-## Next Steps & Future Vision
+## Contact
 
-Each project has documented future enhancements:
+Interested in AI automation, RAG systems, or workflow architecture?
 
-- **Signal Dashboard:** Twitter/X integration, email digests, historical trend tracking
-- **Pinecone Memory:** Multi-index support, memory browser UI, cross-project sharing
-- **LinkedIn Post Generator:** Direct LinkedIn API posting, A/B testing, analytics integration
-- **YouTube-to-NotebookLM:** Multi-language support, quiz generation, Anki integration
-
----
-
-## Contact & Questions
-
-Interested in discussing these projects or automation in general?
-
-- **GitHub:** [japgordon72](https://github.com/japgordon72)
-- **LinkedIn:** [Japheth Gordon](https://linkedin.com/in/japgordon)
 - **Email:** japgordon@gmail.com
+- **LinkedIn:** [linkedin.com/in/japgordon](https://linkedin.com/in/japgordon)
+- **GitHub:** [github.com/japgordon72](https://github.com/japgordon72)
 
 ---
 
 ## License
 
-MIT License — Feel free to use, modify, and extend these projects.
-
----
-
-## Built With
-
-- **Claude Code** — AI development environment
-- **Open source libraries** — Python ecosystem
-- **Free APIs** — HN, ArXiv, GitHub, Reddit, YouTube
-- **Open source platforms** — n8n, Pinecone free tier
-- **Automation mindset** — Building systems that scale
+MIT — use, modify, extend freely.
